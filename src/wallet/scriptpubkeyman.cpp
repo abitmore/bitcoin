@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2022 The Bitcoin Core developers
+// Copyright (c) 2019-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -341,12 +341,6 @@ bool LegacyDataSPKM::HaveWatchOnly(const CScript &dest) const
 {
     LOCK(cs_KeyStore);
     return setWatchOnly.count(dest) > 0;
-}
-
-bool LegacyDataSPKM::HaveWatchOnly() const
-{
-    LOCK(cs_KeyStore);
-    return (!setWatchOnly.empty());
 }
 
 bool LegacyDataSPKM::LoadWatchOnly(const CScript &dest)
@@ -818,13 +812,6 @@ std::optional<MigrationData> LegacyDataSPKM::MigrateToDescriptor()
     }
 
     return out;
-}
-
-bool LegacyDataSPKM::DeleteRecords()
-{
-    return RunWithinTxn(m_storage.GetDatabase(), /*process_desc=*/"delete legacy records", [&](WalletBatch& batch){
-        return DeleteRecordsWithDB(batch);
-    });
 }
 
 bool LegacyDataSPKM::DeleteRecordsWithDB(WalletBatch& batch)

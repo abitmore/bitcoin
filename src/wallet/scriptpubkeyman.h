@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2022 The Bitcoin Core developers
+// Copyright (c) 2019-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -167,9 +167,6 @@ public:
         LogInfo("%s %s", m_storage.GetDisplayName(), tfm::format(wallet_fmt, params...));
     };
 
-    /** Watch-only address added */
-    boost::signals2::signal<void (bool fHaveWatchOnly)> NotifyWatchonlyChanged;
-
     /** Keypool has new keys */
     boost::signals2::signal<void ()> NotifyCanGetAddressesChanged;
 
@@ -244,8 +241,6 @@ public:
     bool LoadWatchOnly(const CScript &dest);
     //! Returns whether the watch-only script is in the wallet
     bool HaveWatchOnly(const CScript &dest) const;
-    //! Returns whether there are any watch-only things in the wallet
-    bool HaveWatchOnly() const;
     //! Adds a key to the store, without saving it to disk (used by LoadWallet)
     bool LoadKey(const CKey& key, const CPubKey &pubkey);
     //! Adds an encrypted key to the store, without saving it to disk (used by LoadWallet)
@@ -270,7 +265,6 @@ public:
      * Does not modify this ScriptPubKeyMan. */
     std::optional<MigrationData> MigrateToDescriptor();
     /** Delete all the records of this LegacyScriptPubKeyMan from disk*/
-    bool DeleteRecords();
     bool DeleteRecordsWithDB(WalletBatch& batch);
 };
 
