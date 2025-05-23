@@ -9,17 +9,16 @@
 #include <key_io.h>
 #include <rpc/server.h>
 #include <rpc/util.h>
+#include <univalue.h>
 #include <util/translation.h>
 #include <wallet/context.h>
 #include <wallet/receive.h>
-#include <wallet/rpc/wallet.h>
 #include <wallet/rpc/util.h>
+#include <wallet/rpc/wallet.h>
 #include <wallet/wallet.h>
 #include <wallet/walletutil.h>
 
 #include <optional>
-
-#include <univalue.h>
 
 
 namespace wallet {
@@ -30,14 +29,6 @@ static const std::map<uint64_t, std::string> WALLET_FLAG_CAVEATS{
      "destinations in the past. Until this is done, some destinations may "
      "be considered unused, even if the opposite is the case."},
 };
-
-/** Checks if a CKey is in the given CWallet compressed or otherwise*/
-bool HaveKey(const SigningProvider& wallet, const CKey& key)
-{
-    CKey key2;
-    key2.Set(key.begin(), key.end(), !key.IsCompressed());
-    return wallet.HaveKey(key.GetPubKey().GetID()) || wallet.HaveKey(key2.GetPubKey().GetID());
-}
 
 static RPCHelpMan getwalletinfo()
 {
@@ -55,7 +46,6 @@ static RPCHelpMan getwalletinfo()
                         {RPCResult::Type::STR_AMOUNT, "unconfirmed_balance", "DEPRECATED. Identical to getbalances().mine.untrusted_pending"},
                         {RPCResult::Type::STR_AMOUNT, "immature_balance", "DEPRECATED. Identical to getbalances().mine.immature"},
                         {RPCResult::Type::NUM, "txcount", "the total number of transactions in the wallet"},
-                        {RPCResult::Type::NUM_TIME, "keypoololdest", /*optional=*/true, "the " + UNIX_EPOCH_TIME + " of the oldest pre-generated key in the key pool. Legacy wallets only."},
                         {RPCResult::Type::NUM, "keypoolsize", "how many new keys are pre-generated (only counts external keys)"},
                         {RPCResult::Type::NUM, "keypoolsize_hd_internal", /*optional=*/true, "how many new keys are pre-generated for internal use (used for change outputs, only appears if the wallet is using this feature, otherwise external keys are used)"},
                         {RPCResult::Type::NUM_TIME, "unlocked_until", /*optional=*/true, "the " + UNIX_EPOCH_TIME + " until which the wallet is unlocked for transfers, or 0 if the wallet is locked (only present for passphrase-encrypted wallets)"},
@@ -100,10 +90,6 @@ static RPCHelpMan getwalletinfo()
     obj.pushKV("unconfirmed_balance", ValueFromAmount(bal.m_mine_untrusted_pending));
     obj.pushKV("immature_balance", ValueFromAmount(bal.m_mine_immature));
     obj.pushKV("txcount",       (int)pwallet->mapWallet.size());
-    const auto kp_oldest = pwallet->GetOldestKeyPoolTime();
-    if (kp_oldest.has_value()) {
-        obj.pushKV("keypoololdest", kp_oldest.value());
-    }
     obj.pushKV("keypoolsize", (int64_t)kpExternalSize);
 
     if (pwallet->CanSupportFeature(FEATURE_HD_SPLIT)) {
@@ -206,8 +192,9 @@ static RPCHelpMan listwallets()
 
 static RPCHelpMan loadwallet()
 {
-    return RPCHelpMan{"loadwallet",
-                "\nLoads a wallet from a wallet file or directory."
+    return RPCHelpMan{
+        "loadwallet",
+        "Loads a wallet from a wallet file or directory."
                 "\nNote that all wallet command-line options used when starting bitcoind will be"
                 "\napplied to the new wallet.\n",
                 {
@@ -275,8 +262,9 @@ static RPCHelpMan setwalletflag()
                 if (it.second & MUTABLE_WALLET_FLAGS)
                     flags += (flags == "" ? "" : ", ") + it.first;
 
-    return RPCHelpMan{"setwalletflag",
-                "\nChange the state of the given wallet flag for a wallet.\n",
+    return RPCHelpMan{
+        "setwalletflag",
+        "Change the state of the given wallet flag for a wallet.\n",
                 {
                     {"flag", RPCArg::Type::STR, RPCArg::Optional::NO, "The name of the flag to change. Current available flags: " + flags},
                     {"value", RPCArg::Type::BOOL, RPCArg::Default{true}, "The new state."},
@@ -339,7 +327,7 @@ static RPCHelpMan createwallet()
 {
     return RPCHelpMan{
         "createwallet",
-        "\nCreates and loads a new wallet.\n",
+        "Creates and loads a new wallet.\n",
         {
             {"wallet_name", RPCArg::Type::STR, RPCArg::Optional::NO, "The name for the new wallet. If this is a path, the wallet will be created at the path location."},
             {"disable_private_keys", RPCArg::Type::BOOL, RPCArg::Default{false}, "Disable the possibility of private keys (only watchonlys are possible in this mode)."},
@@ -363,8 +351,8 @@ static RPCHelpMan createwallet()
         RPCExamples{
             HelpExampleCli("createwallet", "\"testwallet\"")
             + HelpExampleRpc("createwallet", "\"testwallet\"")
-            + HelpExampleCliNamed("createwallet", {{"wallet_name", "descriptors"}, {"avoid_reuse", true}, {"descriptors", true}, {"load_on_startup", true}})
-            + HelpExampleRpcNamed("createwallet", {{"wallet_name", "descriptors"}, {"avoid_reuse", true}, {"descriptors", true}, {"load_on_startup", true}})
+            + HelpExampleCliNamed("createwallet", {{"wallet_name", "descriptors"}, {"avoid_reuse", true}, {"load_on_startup", true}})
+            + HelpExampleRpcNamed("createwallet", {{"wallet_name", "descriptors"}, {"avoid_reuse", true}, {"load_on_startup", true}})
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -490,8 +478,9 @@ static RPCHelpMan unloadwallet()
 
 static RPCHelpMan upgradewallet()
 {
-    return RPCHelpMan{"upgradewallet",
-        "\nUpgrade the wallet. Upgrades to the latest version if no version number is specified.\n"
+    return RPCHelpMan{
+        "upgradewallet",
+        "Upgrade the wallet. Upgrades to the latest version if no version number is specified.\n"
         "New keys may be generated and a new wallet backup will need to be made.",
         {
             {"version", RPCArg::Type::NUM, RPCArg::Default{int{FEATURE_LATEST}}, "The version number to upgrade to. Default is the latest wallet version."}
@@ -552,8 +541,9 @@ static RPCHelpMan upgradewallet()
 
 RPCHelpMan simulaterawtransaction()
 {
-    return RPCHelpMan{"simulaterawtransaction",
-        "\nCalculate the balance change resulting in the signing and broadcasting of the given transaction(s).\n",
+    return RPCHelpMan{
+        "simulaterawtransaction",
+        "Calculate the balance change resulting in the signing and broadcasting of the given transaction(s).\n",
         {
             {"rawtxs", RPCArg::Type::ARR, RPCArg::Optional::OMITTED, "An array of hex strings of raw transactions.\n",
                 {
@@ -661,8 +651,9 @@ RPCHelpMan simulaterawtransaction()
 
 static RPCHelpMan migratewallet()
 {
-    return RPCHelpMan{"migratewallet",
-        "\nMigrate the wallet to a descriptor wallet.\n"
+    return RPCHelpMan{
+        "migratewallet",
+        "Migrate the wallet to a descriptor wallet.\n"
         "A new wallet backup will need to be made.\n"
         "\nThe migration process will create a backup of the wallet before migrating. This backup\n"
         "file will be named <wallet name>-<timestamp>.legacy.bak and can be found in the directory\n"
@@ -731,7 +722,7 @@ RPCHelpMan gethdkeys()
 {
     return RPCHelpMan{
         "gethdkeys",
-        "\nList all BIP 32 HD keys in the wallet and which descriptors use them.\n",
+        "List all BIP 32 HD keys in the wallet and which descriptors use them.\n",
         {
             {"options", RPCArg::Type::OBJ_NAMED_PARAMS, RPCArg::Optional::OMITTED, "", {
                 {"active_only", RPCArg::Type::BOOL, RPCArg::Default{false}, "Show the keys for only active descriptors"},
